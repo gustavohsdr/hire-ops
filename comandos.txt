@@ -1,5 +1,0 @@
-Para verificar a tabela:
-    npx prisma studio
-
-Para rodar o servidor:
-    npx tsx watch src/server.ts
