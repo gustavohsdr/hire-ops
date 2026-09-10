@@ -1,15 +1,35 @@
 import { Draggable } from "@hello-pangea/dnd";
-import { Badge, Card, Flex, Group, Select, Stack, Text } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Card,
+  Group,
+  Menu,
+  Stack,
+  Text,
+} from "@mantine/core";
+import {
+  IconBuilding,
+  IconClock,
+  IconCopy,
+  IconDotsVertical,
+  IconPencil,
+  IconTrash,
+  IconUser,
+} from "@tabler/icons-react";
 import React from "react";
 import type { StatusVaga, Vaga } from "../../types/vaga";
 
 interface VagaCardProps {
   vaga: Vaga;
-  index: number; // 👈 Adicionamos o índice para o DnD
+  index: number;
+  onEditar: (vaga: Vaga) => void;
+  onDuplicar: (vaga: Vaga) => void;
+  onExcluir: (id: number) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
 }
 
-const STATUS_OPCOES = [
+const STATUS_OPCOES: StatusVaga[] = [
   "Em Aberto",
   "Em Andamento",
   "Congelado",
@@ -20,13 +40,31 @@ const STATUS_OPCOES = [
 export const VagaCard: React.FC<VagaCardProps> = ({
   vaga,
   index,
+  onEditar,
+  onDuplicar,
+  onExcluir,
   onMudarStatus,
 }) => {
   const dataAbertura = new Date(vaga.dataAbertura);
-  const diasEmAberto = Math.floor(
-    (new Date().getTime() - dataAbertura.getTime()) / (1000 * 3600 * 24),
+  const dataFim = vaga.dataFinalizacao
+    ? new Date(vaga.dataFinalizacao)
+    : new Date();
+
+  const diasDecorridos = Math.floor(
+    (dataFim.getTime() - dataAbertura.getTime()) / (1000 * 3600 * 24),
   );
-  const estourouSLA = diasEmAberto > vaga.slaDias;
+
+  const diasRestantes = vaga.slaDias - diasDecorridos;
+  const isConcluida = vaga.status === "Concluído";
+
+  let badgeColor = "gray";
+  if (isConcluida) {
+    badgeColor = diasRestantes >= 0 ? "green" : "red";
+  } else if (diasRestantes < 0) {
+    badgeColor = "red";
+  } else if (diasRestantes <= 5) {
+    badgeColor = "yellow";
+  }
 
   return (
     <Draggable draggableId={String(vaga.id)} index={index}>
@@ -36,47 +74,114 @@ export const VagaCard: React.FC<VagaCardProps> = ({
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           shadow="xs"
-          padding="md"
+          padding="sm"
           radius="md"
           withBorder
           mb="sm"
           bg="white"
         >
-          <Group justify="space-between" mb="xs">
-            <Text fw={600} size="sm">
+          {/* CABEÇALHO */}
+          <Group justify="space-between" align="flex-start" mb={4}>
+            <Text fw={700} size="sm" style={{ flex: 1 }}>
               {vaga.cargo?.nome || "Cargo"} - {vaga.nivel}
             </Text>
-            <Badge color="blue" variant="light">
-              Qtd: {vaga.quantidade}
-            </Badge>
+
+            <Group gap={4}>
+              <Badge size="xs" variant="light" color="blue">
+                QTD: {vaga.quantidade}
+              </Badge>
+
+              <Menu shadow="md" width={170} position="bottom-end">
+                <Menu.Target>
+                  <ActionIcon variant="subtle" color="gray" size="sm">
+                    <IconDotsVertical size={16} />
+                  </ActionIcon>
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                  <Menu.Label>Ações</Menu.Label>
+                  <Menu.Item
+                    leftSection={<IconPencil size={14} />}
+                    onClick={() => onEditar(vaga)}
+                  >
+                    Editar
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconCopy size={14} />}
+                    onClick={() => onDuplicar(vaga)}
+                  >
+                    Duplicar
+                  </Menu.Item>
+
+                  <Menu.Divider />
+
+                  <Menu.Label>Mover Status</Menu.Label>
+                  {STATUS_OPCOES.map((st) => (
+                    <Menu.Item
+                      key={st}
+                      disabled={vaga.status === st}
+                      onClick={() => onMudarStatus(vaga.id, st)}
+                    >
+                      {st}
+                    </Menu.Item>
+                  ))}
+
+                  <Menu.Divider />
+
+                  <Menu.Item
+                    color="red"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Tem certeza que deseja excluir a vaga de ${vaga.cargo?.nome}?`,
+                        )
+                      ) {
+                        onExcluir(vaga.id);
+                      }
+                    }}
+                  >
+                    Excluir
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
           </Group>
 
-          <Stack gap={4} mb="md">
-            <Text size="xs" c="dimmed">
-              📍 {vaga.unidade} • 🏢 {vaga.departamento}
-            </Text>
-            <Text size="xs" c="dimmed">
-              👤 Gestor: {vaga.gestor}
-            </Text>
+          {/* INFORMAÇÕES DE DEPARTAMENTO E GESTOR */}
+          <Stack gap={2} mb="xs">
+            <Group gap={4} wrap="nowrap">
+              <IconBuilding size={14} color="gray" />
+              <Text size="xs" c="dimmed">
+                {vaga.departamento} • {vaga.unidade}
+              </Text>
+            </Group>
+
+            <Group gap={4} wrap="nowrap">
+              <IconUser size={14} color="gray" />
+              <Text size="xs" c="dimmed">
+                Gestor: {vaga.gestor}
+              </Text>
+            </Group>
           </Stack>
 
-          <Flex justify="space-between" align="center" mb="sm">
-            <Badge
-              color={estourouSLA ? "red" : "gray"}
-              variant="filled"
-              size="sm"
-            >
-              ⏱️ {diasEmAberto}d / {vaga.slaDias}d SLA
-            </Badge>
-          </Flex>
+          {/* INDICADOR DE SLA E PRAZO */}
+          <Group justify="space-between" align="center">
+            <Group gap={4}>
+              <IconClock size={14} color="gray" />
+              <Text size="xs" c="gray.7" fw={500}>
+                SLA: {vaga.slaDias}d
+              </Text>
+            </Group>
 
-          <Select
-            label="Mover para"
-            size="xs"
-            value={vaga.status}
-            onChange={(val) => val && onMudarStatus(vaga.id, val as StatusVaga)}
-            data={STATUS_OPCOES}
-          />
+            <Badge size="xs" color={badgeColor} variant="filled">
+              {isConcluida
+                ? `FECHADO EM ${diasDecorridos}D`
+                : diasRestantes < 0
+                  ? `ATRASADO ${Math.abs(diasRestantes)}D`
+                  : `RESTAM: ${diasRestantes} DIAS`}
+            </Badge>
+          </Group>
         </Card>
       )}
     </Draggable>

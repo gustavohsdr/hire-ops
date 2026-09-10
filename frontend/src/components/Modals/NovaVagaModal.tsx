@@ -1,12 +1,14 @@
 import {
   Button,
-  Fieldset,
+  Divider,
   Grid,
   Group,
   Modal,
   NumberInput,
+  SegmentedControl,
   Select,
   Stack,
+  Text,
   TextInput,
 } from "@mantine/core";
 import React, { useEffect, useState } from "react";
@@ -82,149 +84,219 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
     <Modal
       opened
       onClose={onClose}
-      title="➕ Cadastrar Nova Vaga"
+      title={
+        <div>
+          <Text fw={700} size="lg">
+            Nova Requisição de Vaga
+          </Text>
+          <Text size="xs" c="dimmed">
+            Preencha os dados abaixo para iniciar o processo seletivo
+          </Text>
+        </div>
+      }
       size="lg"
       centered
+      radius="md"
+      padding="xl"
     >
       <form onSubmit={handleSubmit}>
-        <Stack gap="md">
-          <Fieldset legend="1. Informações Básicas do Cargo">
-            <Grid>
-              <Grid.Col span={6}>
+        <Stack gap="lg">
+          {/* SEÇÃO 1: PERFIL DA VAGA */}
+          <div>
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1} mb="xs">
+              1. Perfil da Vaga
+            </Text>
+
+            <Grid gutter="md">
+              <Grid.Col span={12}>
                 {!criandoCargo ? (
-                  <Group align="flex-end">
+                  <div>
+                    <Group justify="space-between" mb={4}>
+                      <Text size="sm" fw={500}>
+                        Cargo *
+                      </Text>
+                      <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={() => setCriandoCargo(true)}
+                      >
+                        + Cadastrar novo cargo
+                      </Button>
+                    </Group>
                     <Select
-                      label="Cargo *"
-                      style={{ flex: 1 }}
+                      placeholder="Selecione o cargo base"
                       data={cargos.map((c) => ({
                         value: String(c.id),
                         label: c.nome,
                       }))}
                       value={cargoId}
                       onChange={(val) => setCargoId(val || "")}
+                      searchable
                     />
-                    <Button
-                      variant="light"
-                      onClick={() => setCriandoCargo(true)}
-                    >
-                      + Novo
-                    </Button>
-                  </Group>
+                  </div>
                 ) : (
-                  <Group align="flex-end">
-                    <TextInput
-                      label="Novo Cargo"
-                      style={{ flex: 1 }}
-                      value={novoCargoNome}
-                      onChange={(e) => setNovoCargoNome(e.target.value)}
-                    />
-                    <Button onClick={handleCriarCargo}>Salvar</Button>
-                    <Button
-                      variant="subtle"
-                      onClick={() => setCriandoCargo(false)}
-                    >
-                      Cancelar
-                    </Button>
-                  </Group>
+                  <div>
+                    <Text size="sm" fw={500} mb={4}>
+                      Cadastrar Novo Cargo
+                    </Text>
+                    <Group gap="xs">
+                      <TextInput
+                        placeholder="Nome do cargo (ex: Analista Fiscal)"
+                        style={{ flex: 1 }}
+                        value={novoCargoNome}
+                        onChange={(e) => setNovoCargoNome(e.target.value)}
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleCriarCargo}>
+                        Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => setCriandoCargo(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </Group>
+                  </div>
                 )}
               </Grid.Col>
-              <Grid.Col span={6}>
-                <Select
-                  label="Nível / Sênioridade"
+
+              <Grid.Col span={12}>
+                <Text size="sm" fw={500} mb={6}>
+                  Nível / Sênioridade
+                </Text>
+                <SegmentedControl
+                  fullWidth
                   value={nivel}
-                  onChange={(val) => setNivel(val || "Pleno")}
+                  onChange={setNivel}
                   data={["Jr", "Pleno", "Sr", "Estágio", "Coordenador"]}
                 />
               </Grid.Col>
-              <Grid.Col span={6}>
+
+              <Grid.Col span={4}>
                 <NumberInput
                   label="Qtd. Vagas"
                   value={quantidade}
-                  onChange={(val) => setQuantidade(Number(val))}
+                  onChange={(val) => setQuantidade(Number(val) || 1)}
                   min={1}
                 />
               </Grid.Col>
-              <Grid.Col span={6}>
+
+              <Grid.Col span={4}>
                 <NumberInput
-                  label="SLA (dias)"
+                  label="SLA (Dias)"
                   value={slaDias}
-                  onChange={(val) => setSlaDias(Number(val))}
+                  onChange={(val) => setSlaDias(Number(val) || 30)}
                   min={1}
+                />
+              </Grid.Col>
+
+              <Grid.Col span={4}>
+                <Select
+                  label="Contrato"
+                  value={tipoContrato}
+                  onChange={(val) => setTipoContrato(val || "CLT")}
+                  data={["CLT", "PJ", "Estágio", "Temporário"]}
                 />
               </Grid.Col>
             </Grid>
-          </Fieldset>
+          </div>
 
-          <Fieldset legend="2. Estrutura Organizacional">
-            <Grid>
+          <Divider color="gray.2" />
+
+          {/* SEÇÃO 2: ESTRUTURA ORGANIZACIONAL */}
+          <div>
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1} mb="xs">
+              2. Estrutura Organizacional
+            </Text>
+
+            <Grid gutter="md">
               <Grid.Col span={6}>
                 <TextInput
-                  label="Unidade *"
+                  label="Unidade / Filial"
+                  placeholder="Ex: Matriz SP"
                   required
                   value={unidade}
                   onChange={(e) => setUnidade(e.target.value)}
                 />
               </Grid.Col>
+
               <Grid.Col span={6}>
                 <TextInput
-                  label="Departamento *"
+                  label="Departamento"
+                  placeholder="Ex: Financeiro"
                   required
                   value={departamento}
                   onChange={(e) => setDepartamento(e.target.value)}
                 />
               </Grid.Col>
+
               <Grid.Col span={6}>
                 <TextInput
-                  label="Gestor Solicitante *"
+                  label="Gestor Solicitante"
+                  placeholder="Nome do gestor"
                   required
                   value={gestor}
                   onChange={(e) => setGestor(e.target.value)}
                 />
               </Grid.Col>
+
               <Grid.Col span={6}>
                 <TextInput
-                  label="Recrutador Responsável *"
+                  label="Recrutador Responsável"
+                  placeholder="Nome do recrutador"
                   required
                   value={recrutador}
                   onChange={(e) => setRecrutador(e.target.value)}
                 />
               </Grid.Col>
             </Grid>
-          </Fieldset>
+          </div>
 
-          <Fieldset legend="3. Condições de Contratação">
-            <Grid>
-              <Grid.Col span={6}>
-                <Select
-                  label="Tipo de Contrato"
-                  value={tipoContrato}
-                  onChange={(val) => setTipoContrato(val || "CLT")}
-                  data={["CLT", "PJ", "Estágio", "Temporário"]}
-                />
-              </Grid.Col>
-              <Grid.Col span={6}>
-                <Select
-                  label="Motivo da Abertura"
+          <Divider color="gray.2" />
+
+          {/* SEÇÃO 3: CONDIÇÕES E MOTIVO */}
+          <div>
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" lts={1} mb="xs">
+              3. Condições
+            </Text>
+
+            <Grid gutter="md">
+              <Grid.Col span={12}>
+                <Text size="sm" fw={500} mb={6}>
+                  Motivo da Abertura
+                </Text>
+                <SegmentedControl
+                  fullWidth
                   value={motivo}
-                  onChange={(val) => setMotivo(val || "Substituição")}
+                  onChange={setMotivo}
                   data={["Substituição", "Aumento de Quadro"]}
                 />
               </Grid.Col>
+
               <Grid.Col span={12}>
                 <TextInput
-                  label="Carga Horária"
+                  label="Carga Horária / Escala"
+                  placeholder="Ex: Segunda a Sexta - 08:00 às 17:00"
                   value={cargaHoraria}
                   onChange={(e) => setCargaHoraria(e.target.value)}
                 />
               </Grid.Col>
             </Grid>
-          </Fieldset>
+          </div>
 
+          {/* RODAPÉ */}
           <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={onClose} disabled={loading}>
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={onClose}
+              disabled={loading}
+            >
               Cancelar
             </Button>
-            <Button type="submit" loading={loading}>
+            <Button type="submit" loading={loading} radius="md">
               Cadastrar Vaga
             </Button>
           </Group>
