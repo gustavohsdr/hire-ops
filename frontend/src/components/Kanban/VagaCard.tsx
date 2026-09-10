@@ -25,7 +25,7 @@ interface VagaCardProps {
   index: number;
   onEditar: (vaga: Vaga) => void;
   onDuplicar: (vaga: Vaga) => void;
-  onExcluir: (id: number) => void;
+  onExcluir: (vaga: Vaga) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
 }
 
@@ -87,9 +87,11 @@ export const VagaCard: React.FC<VagaCardProps> = ({
             </Text>
 
             <Group gap={4}>
-              <Badge size="xs" variant="light" color="blue">
-                QTD: {vaga.quantidade}
-              </Badge>
+              {vaga.quantidade > 1 && (
+                <Badge size="xs" variant="light" color="blue">
+                  QTD: {vaga.quantidade}
+                </Badge>
+              )}
 
               <Menu shadow="md" width={170} position="bottom-end">
                 <Menu.Target>
@@ -131,15 +133,7 @@ export const VagaCard: React.FC<VagaCardProps> = ({
                   <Menu.Item
                     color="red"
                     leftSection={<IconTrash size={14} />}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          `Tem certeza que deseja excluir a vaga de ${vaga.cargo?.nome}?`,
-                        )
-                      ) {
-                        onExcluir(vaga.id);
-                      }
-                    }}
+                    onClick={() => onExcluir(vaga)}
                   >
                     Excluir
                   </Menu.Item>

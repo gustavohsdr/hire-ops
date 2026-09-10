@@ -1,5 +1,5 @@
 import { Droppable } from "@hello-pangea/dnd";
-import { Badge, Group, Paper, Stack, Text } from "@mantine/core";
+import { Paper, Stack, Text } from "@mantine/core";
 import React from "react";
 import type { StatusVaga, Vaga } from "../../types/vaga";
 import { VagaCard } from "./VagaCard";
@@ -7,20 +7,18 @@ import { VagaCard } from "./VagaCard";
 interface KanbanColumnProps {
   status: StatusVaga;
   vagas: Vaga[];
+  onEditar: (vaga: Vaga) => void;
+  onDuplicar: (vaga: Vaga) => void;
+  onExcluir: (vaga: Vaga) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
 }
-
-const CORES_STATUS: Record<StatusVaga, string> = {
-  "Em Aberto": "blue",
-  "Em Andamento": "yellow",
-  Congelado: "gray",
-  Concluído: "green",
-  Cancelado: "red",
-};
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   status,
   vagas,
+  onEditar,
+  onDuplicar,
+  onExcluir,
   onMudarStatus,
 }) => {
   return (
@@ -32,14 +30,9 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       style={{ display: "flex", flexDirection: "column", minHeight: "650px" }}
     >
       <Paper p="xs" radius="sm" withBorder mb="md" bg="white">
-        <Group justify="space-between">
-          <Text fw={700} size="xs" tt="uppercase" c="dimmed">
-            {status}
-          </Text>
-          <Badge color={CORES_STATUS[status]} variant="light" size="sm" circle>
-            {vagas.length}
-          </Badge>
-        </Group>
+        <Text fw={700} size="sm">
+          {status} ({vagas.length})
+        </Text>
       </Paper>
 
       <Droppable droppableId={status}>
@@ -57,30 +50,38 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               transition: "background-color 0.2s ease",
             }}
           >
-            {/* Esconde a caixa "Sem vagas" se a coluna tiver cards OU se o usuário estiver arrastando algo sobre ela */}
-            {vagas.length === 0 && !snapshot.isDraggingOver ? (
+            {vagas.length === 0 && (
               <Paper
                 p="xl"
                 withBorder
-                style={{ borderStyle: "dashed" }}
+                style={{
+                  borderStyle: "dashed",
+                  opacity: snapshot.isDraggingOver ? 0.2 : 1,
+                  transition: "opacity 0.2s ease",
+                }}
                 bg="transparent"
+                mb="xs"
               >
                 <Text size="xs" c="dimmed" ta="center">
                   Sem vagas
                 </Text>
               </Paper>
-            ) : (
-              <Stack gap="xs">
-                {vagas.map((vaga, index) => (
-                  <VagaCard
-                    key={vaga.id}
-                    vaga={vaga}
-                    index={index}
-                    onMudarStatus={onMudarStatus}
-                  />
-                ))}
-              </Stack>
             )}
+
+            <Stack gap="xs">
+              {vagas.map((vaga, index) => (
+                <VagaCard
+                  key={vaga.id}
+                  vaga={vaga}
+                  index={index}
+                  onEditar={onEditar}
+                  onDuplicar={onDuplicar}
+                  onExcluir={onExcluir}
+                  onMudarStatus={onMudarStatus}
+                />
+              ))}
+            </Stack>
+
             {provided.placeholder}
           </div>
         )}

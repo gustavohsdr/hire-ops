@@ -8,7 +8,10 @@ const vagasController = new VagasController();
 // Rotas de Vagas
 routes.get("/vagas", vagasController.listar);
 routes.post("/vagas", vagasController.criar);
+routes.put("/vagas/:id", vagasController.atualizar.bind(vagasController));
+routes.delete("/vagas/:id", vagasController.excluir);
 routes.patch("/vagas/:id/status", vagasController.atualizarStatus);
+routes.post("/vagas/:id/desmembrar", vagasController.desmembrar.bind(vagasController));
 
 // Rotas auxiliares de Cargos para os Selects do Front
 routes.get("/cargos", async (req, res) => {

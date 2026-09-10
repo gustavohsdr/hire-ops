@@ -8,6 +8,9 @@ import { KanbanColumn } from "./KanbanColumn";
 
 interface KanbanBoardProps {
   vagas: Vaga[];
+  onEditar: (vaga: Vaga) => void;
+  onDuplicar: (vaga: Vaga) => void;
+  onExcluir: (vaga: Vaga) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
 }
 
@@ -21,6 +24,9 @@ const COLUNAS: StatusVaga[] = [
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   vagas,
+  onEditar,
+  onDuplicar,
+  onExcluir,
   onMudarStatus,
 }) => {
   const handleDragEnd = (result: DropResult) => {
@@ -49,6 +55,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               key={status}
               status={status}
               vagas={vagasDaColuna}
+              onEditar={onEditar}
+              onDuplicar={onDuplicar}
+              onExcluir={onExcluir}
               onMudarStatus={onMudarStatus}
             />
           );

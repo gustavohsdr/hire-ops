@@ -13,32 +13,48 @@ import {
 } from "@mantine/core";
 import React, { useEffect, useState } from "react";
 import { api } from "../../services/api";
-import type { Cargo, NovaVagaPayload } from "../../types/vaga";
+import type { Cargo, NovaVagaPayload, Vaga } from "../../types/vaga";
 
 interface NovaVagaModalProps {
+  vagaInicial?: Vaga | null; // Recebe a vaga selecionada (ou null se for criar)
   onClose: () => void;
   onSubmit: (payload: NovaVagaPayload) => Promise<void>;
 }
 
 export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
+  vagaInicial,
   onClose,
   onSubmit,
 }) => {
+  // Estado para armazenar os cargos vindos da API
   const [cargos, setCargos] = useState<Cargo[]>([]);
-  const [cargoId, setCargoId] = useState<string>("");
   const [novoCargoNome, setNovoCargoNome] = useState("");
   const [criandoCargo, setCriandoCargo] = useState(false);
 
-  const [nivel, setNivel] = useState<string>("Pleno");
-  const [quantidade, setQuantidade] = useState<number>(1);
-  const [unidade, setUnidade] = useState("");
-  const [departamento, setDepartamento] = useState("");
-  const [gestor, setGestor] = useState("");
-  const [recrutador, setRecrutador] = useState("");
-  const [motivo, setMotivo] = useState<string>("Substituição");
-  const [tipoContrato, setTipoContrato] = useState<string>("CLT");
-  const [cargaHoraria, setCargaHoraria] = useState("44h semanais");
-  const [slaDias, setSlaDias] = useState<number>(30);
+  // Inicializa os campos preenchidos caso seja edição/duplicação
+  const [cargoId, setCargoId] = useState<string>(
+    vagaInicial ? String(vagaInicial.cargoId) : "",
+  );
+  const [nivel, setNivel] = useState<string>(vagaInicial?.nivel || "Pleno");
+  const [quantidade, setQuantidade] = useState<number>(
+    vagaInicial?.quantidade || 1,
+  );
+  const [unidade, setUnidade] = useState(vagaInicial?.unidade || "");
+  const [departamento, setDepartamento] = useState(
+    vagaInicial?.departamento || "",
+  );
+  const [gestor, setGestor] = useState(vagaInicial?.gestor || "");
+  const [recrutador, setRecrutador] = useState(vagaInicial?.recrutador || "");
+  const [motivo, setMotivo] = useState<string>(
+    vagaInicial?.motivo || "Substituição",
+  );
+  const [tipoContrato, setTipoContrato] = useState<string>(
+    vagaInicial?.tipoContrato || "CLT",
+  );
+  const [cargaHoraria, setCargaHoraria] = useState(
+    vagaInicial?.cargaHoraria || "44h semanais",
+  );
+  const [slaDias, setSlaDias] = useState<number>(vagaInicial?.slaDias || 30);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -46,38 +62,58 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
   }, []);
 
   const carregarCargos = async () => {
-    const lista = await api.getCargos();
-    setCargos(lista);
-    if (lista.length > 0) setCargoId(String(lista[0].id));
+    try {
+      const lista = await api.getCargos();
+      setCargos(lista);
+      // Se for uma nova vaga e houver cargos, seleciona o primeiro se nenhum estiver selecionado
+      if (!vagaInicial && lista.length > 0 && !cargoId) {
+        setCargoId(String(lista[0].id));
+      }
+    } catch (error) {
+      console.error("Erro ao carregar cargos:", error);
+    }
   };
 
-  const handleCriarCargo = async () => {
+  const handleCriarCargo = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Garante que não submeta o form pai
+    e.stopPropagation();
     if (!novoCargoNome.trim()) return;
-    const novo = await api.createCargo(novoCargoNome.trim());
-    setCargos((prev) => [...prev, novo]);
-    setCargoId(String(novo.id));
-    setNovoCargoNome("");
-    setCriandoCargo(false);
+
+    try {
+      const novo = await api.createCargo(novoCargoNome.trim());
+      setCargos((prev) => [...prev, novo]);
+      setCargoId(String(novo.id));
+      setNovoCargoNome("");
+      setCriandoCargo(false);
+    } catch (error) {
+      console.error("Erro ao criar cargo:", error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cargoId) return;
+    if (!cargoId || loading) return;
+
     setLoading(true);
-    await onSubmit({
-      cargoId: Number(cargoId),
-      nivel: nivel as any,
-      quantidade: Number(quantidade),
-      unidade,
-      departamento,
-      gestor,
-      recrutador,
-      motivo: motivo as any,
-      tipoContrato: tipoContrato as any,
-      cargaHoraria,
-      slaDias: Number(slaDias),
-    });
-    setLoading(false);
+    try {
+      await onSubmit({
+        cargoId: Number(cargoId),
+        nivel: nivel as any,
+        quantidade: Number(quantidade),
+        unidade,
+        departamento,
+        gestor,
+        recrutador,
+        motivo: motivo as any,
+        tipoContrato: tipoContrato as any,
+        cargaHoraria,
+        slaDias: Number(slaDias),
+      });
+    } catch (error) {
+      console.error("Erro ao salvar vaga:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -87,7 +123,11 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
       title={
         <div>
           <Text fw={700} size="lg">
-            Nova Requisição de Vaga
+            {vagaInicial
+              ? vagaInicial.id
+                ? "Editar Vaga"
+                : "Duplicar Vaga"
+              : "Nova Requisição de Vaga"}
           </Text>
           <Text size="xs" c="dimmed">
             Preencha os dados abaixo para iniciar o processo seletivo
@@ -107,7 +147,7 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
               1. Perfil da Vaga
             </Text>
 
-            <Grid gutter="md">
+            <Grid>
               <Grid.Col span={12}>
                 {!criandoCargo ? (
                   <div>
@@ -118,6 +158,7 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
                       <Button
                         variant="subtle"
                         size="compact-xs"
+                        type="button"
                         onClick={() => setCriandoCargo(true)}
                       >
                         + Cadastrar novo cargo
@@ -147,12 +188,17 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
                         onChange={(e) => setNovoCargoNome(e.target.value)}
                         autoFocus
                       />
-                      <Button size="sm" onClick={handleCriarCargo}>
+                      <Button
+                        size="sm"
+                        type="button"
+                        onClick={handleCriarCargo}
+                      >
                         Salvar
                       </Button>
                       <Button
                         size="sm"
                         variant="default"
+                        type="button"
                         onClick={() => setCriandoCargo(false)}
                       >
                         Cancelar
@@ -211,7 +257,7 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
               2. Estrutura Organizacional
             </Text>
 
-            <Grid gutter="md">
+            <Grid>
               <Grid.Col span={6}>
                 <TextInput
                   label="Unidade / Filial"
@@ -262,7 +308,7 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
               3. Condições
             </Text>
 
-            <Grid gutter="md">
+            <Grid>
               <Grid.Col span={12}>
                 <Text size="sm" fw={500} mb={6}>
                   Motivo da Abertura
@@ -291,13 +337,18 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({
             <Button
               variant="subtle"
               color="gray"
+              type="button"
               onClick={onClose}
               disabled={loading}
             >
               Cancelar
             </Button>
             <Button type="submit" loading={loading} radius="md">
-              Cadastrar Vaga
+              {vagaInicial
+                ? vagaInicial.id
+                  ? "Salvar Vaga"
+                  : "Duplicar Vaga"
+                : "Cadastrar Vaga"}
             </Button>
           </Group>
         </Stack>
