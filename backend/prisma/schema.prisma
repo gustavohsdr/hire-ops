@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Cargo {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique
+  vagas Vaga[]
+}
+
+model Vaga {
+  id              Int       @id @default(autoincrement())
+  cargoId         Int
+  cargo           Cargo     @relation(fields: [cargoId], references: [id])
+  nivel           String    // Jr, Pleno, Sr, Estágio
+  quantidade      Int       @default(1)
+  unidade         String
+  departamento    String
+  gestor          String
+  recrutador      String
+  motivo          String    // Aumento de Quadro, Substituição
+  tipoContrato    String    // CLT, PJ, Estágio
+  cargaHoraria    String?
+  status          String    @default("Em Aberto") // Em Aberto, Em Andamento, Congelado, Concluído, Cancelado
+  slaDias         Int       @default(30)
+  dataAbertura    DateTime  @default(now())
+  dataFinalizacao DateTime?
+}
