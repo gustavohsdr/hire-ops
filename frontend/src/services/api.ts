@@ -1,4 +1,5 @@
-import { Cargo, NovaVagaPayload, StatusVaga, Vaga } from "../types/vaga";
+// src/services/api.ts
+import type { Cargo, NovaVagaPayload, StatusVaga, Vaga } from "../types/vaga";
 
 const API_BASE = "http://localhost:3333/api";
 
