@@ -14,7 +14,7 @@ export interface Vaga {
   id: number;
   cargoId: number;
   cargo: Cargo;
-  nivel: "Jr" | "Pleno" | "Sr" | "Estágio" | "Coordenador";
+  nivel: "Jr" | "Pleno" | "Senior" | "Estágio" | "Coordenador";
   quantidade: number;
   unidade: string;
   departamento: string;
@@ -33,3 +33,11 @@ export type NovaVagaPayload = Omit<
   Vaga,
   "id" | "cargo" | "dataAbertura" | "dataFinalizacao" | "status"
 >;
+
+export type AtualizarStatusResponse =
+  | { agrupado: true; destino: Vaga; removidoId: number }
+  | { agrupado: false; vaga: Vaga };
+
+export type DesmembrarResponse =
+  | { agrupado: true; origem: Vaga; destino: Vaga }
+  | { agrupado: false; origem: Vaga; nova: Vaga };

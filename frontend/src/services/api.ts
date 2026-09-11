@@ -1,5 +1,5 @@
 // src/services/api.ts
-import type { Cargo, NovaVagaPayload, StatusVaga, Vaga } from "../types/vaga";
+import type { AtualizarStatusResponse, Cargo, DesmembrarResponse, NovaVagaPayload, StatusVaga, Vaga } from "../types/vaga";
 
 const API_BASE = "http://localhost:3333/api";
 
@@ -20,7 +20,7 @@ export const api = {
     return res.json();
   },
 
-  async updateStatus(id: number, novoStatus: StatusVaga): Promise<{ agrupado: boolean; vaga?: Vaga; destino?: Vaga; removidoId?: number }> {
+  async updateStatus(id: number, novoStatus: StatusVaga): Promise<AtualizarStatusResponse> {
     const res = await fetch(`${API_BASE}/vagas/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -65,7 +65,7 @@ export const api = {
     }
   },
 
-  async desmembrarVaga(id: number, quantidade: number, novoStatus: StatusVaga): Promise<{ origem: Vaga; nova?: Vaga; destino?: Vaga; agrupado: boolean }> {
+  async desmembrarVaga(id: number, quantidade: number, novoStatus: StatusVaga): Promise<DesmembrarResponse> {
     const res = await fetch(`${API_BASE}/vagas/${id}/desmembrar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

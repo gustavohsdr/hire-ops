@@ -27,6 +27,7 @@ interface VagaCardProps {
   onDuplicar: (vaga: Vaga) => void;
   onExcluir: (vaga: Vaga) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
+  isPending?: boolean;
 }
 
 const STATUS_OPCOES: StatusVaga[] = [
@@ -44,6 +45,7 @@ export const VagaCard: React.FC<VagaCardProps> = ({
   onDuplicar,
   onExcluir,
   onMudarStatus,
+  isPending,
 }) => {
   const dataAbertura = new Date(vaga.dataAbertura);
   const dataFim = vaga.dataFinalizacao
@@ -67,7 +69,7 @@ export const VagaCard: React.FC<VagaCardProps> = ({
   }
 
   return (
-    <Draggable draggableId={String(vaga.id)} index={index}>
+    <Draggable draggableId={String(vaga.id)} index={index} isDragDisabled={!!isPending}>
       {(provided) => (
         <Card
           ref={provided.innerRef}
@@ -79,10 +81,16 @@ export const VagaCard: React.FC<VagaCardProps> = ({
           withBorder
           mb="sm"
           bg="white"
+          opacity={isPending ? 0.6 : 1}
+          style={{
+            borderStyle: isPending ? "dashed" : undefined,
+            padding: 12,
+            ...(provided.draggableProps.style as any),
+          }}
         >
           {/* CABEÇALHO */}
-          <Group justify="space-between" align="flex-start" mb={4}>
-            <Text fw={700} size="sm" style={{ flex: 1 }}>
+          <Group justify="space-between" align="flex-start" mb={4} wrap="nowrap">
+            <Text fw={700} size="sm" style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${vaga.cargo?.nome || "Cargo"} - ${vaga.nivel}`} lh={1.4}>
               {vaga.cargo?.nome || "Cargo"} - {vaga.nivel}
             </Text>
 
