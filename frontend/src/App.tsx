@@ -1,9 +1,10 @@
-import { AppShell, Group, SegmentedControl, Select, Stack, Text, Title } from "@mantine/core";
+import { AppShell, Box, Group, SegmentedControl, Select, Stack, Text, Title } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import { KanbanBoard } from "./components/Kanban/KanbanBoard";
 import { AppHeader } from "./components/Layout/AppHeader";
 import { AppSidebar } from "./components/Layout/AppSidebar";
 import { MetricasBar } from "./components/MetricasBar";
+import { ConfiguracoesPage } from "./pages/ConfiguracoesPage";
 import { ConfirmarExclusaoModal } from "./components/Modals/ConfirmarExclusaoModal";
 import { MoverVagaModal } from "./components/Modals/MoverVagaModal";
 import { NovaVagaModal } from "./components/Modals/NovaVagaModal";
@@ -22,6 +23,7 @@ export function App() {
   const [sidebarOpened, setSidebarOpened] = useState(false);
   const [visao, setVisao] = useState<"kanban" | "tabela">("kanban");
   const [filtroUnidade, setFiltroUnidade] = useState<string | null>(null);
+  const [page, setPage] = useState("kanban");
 
   const carregarVagas = async () => {
     const dados = await api.getVagas();
@@ -69,7 +71,8 @@ export function App() {
     setVagaParaExcluir(null);
   };
 
-  const isMesmoNegocio = (a: Vaga, b: Vaga) => a.cargoId === b.cargoId && a.gestor === b.gestor && a.departamento === b.departamento && a.unidade === b.unidade;
+  const mesmoDia = (a: string, b: string) => a.slice(0, 10) === b.slice(0, 10);
+  const isMesmoNegocio = (a: Vaga, b: Vaga) => a.cargoId === b.cargoId && a.nivel === b.nivel && a.gestor === b.gestor && a.departamento === b.departamento && a.unidade === b.unidade && a.tipoContrato === b.tipoContrato && mesmoDia(a.dataAbertura, b.dataAbertura);
 
   const executarMoverTodas = async (id: number, novoStatus: StatusVaga) => {
     const dragged = vagas.find((v) => v.id === id);
@@ -157,41 +160,49 @@ export function App() {
 
   const handleSalvarVaga = async (payload: NovaVagaPayload) => {
     if (modoModal === "editar" && vagaSelecionada) {
-      await api.updateVaga(vagaSelecionada.id, payload);
-    } else {
-      const existente = vagas.find((v) => v.status === "Em Aberto" && v.cargoId === Number(payload.cargoId) && v.gestor === payload.gestor && v.departamento === payload.departamento && v.unidade === payload.unidade);
-      if (existente) {
-        await api.updateVaga(existente.id, { ...payload, quantidade: existente.quantidade + Number(payload.quantidade) });
-      } else {
-        await api.createVaga(payload);
-      }
+      const atualizada = await api.updateVaga(vagaSelecionada.id, payload);
+      setVagas((prev) => prev.map((v) => (v.id === atualizada.id ? atualizada : v)));
+      setModalAberta(false);
+      return;
     }
-    await carregarVagas();
+    const res: any = await api.createVaga(payload);
+    if (res?.agrupado) {
+      setVagas((prev) => prev.map((v) => (v.id === res.vaga.id ? res.vaga : v)));
+    } else {
+      const nova: Vaga = res?.vaga ?? res;
+      setVagas((prev) => [...prev, nova]);
+    }
     setModalAberta(false);
   };
 
   return (
-    <AppShell header={{ height: 60 }} navbar={{ width: 220, breakpoint: "sm", collapsed: { mobile: !sidebarOpened } }} padding="md">
+    <AppShell header={{ height: 60 }} navbar={{ width: 220, breakpoint: "sm", collapsed: { mobile: !sidebarOpened } }} padding="md" style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <AppShell.Header withBorder>
         <AppHeader busca={busca} onBuscaChange={setBusca} onNovaVaga={handleAbrirCriar} opened={sidebarOpened} onToggle={() => setSidebarOpened((o) => !o)} />
       </AppShell.Header>
       <AppShell.Navbar p="xs" withBorder>
-        <AppSidebar />
+        <AppSidebar page={page} onNavigate={setPage} />
       </AppShell.Navbar>
-      <AppShell.Main>
-        <Stack gap="md">
+      <AppShell.Main style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 0 }}>
+        {page === "configuracoes" ? (
+          <ConfiguracoesPage />
+        ) : (
+        <Stack gap="md" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
           <Group justify="space-between"><Title order={3}>Controle de Vagas</Title><Text size="xs" c="dimmed">Gestão de recrutamento & seleção</Text></Group>
           <MetricasBar vagas={vagas} />
-          <Group justify="space-between" wrap="wrap">
+          <Group justify="space-between" wrap="wrap" style={{ flexShrink: 0 }}>
             <SegmentedControl value={visao} onChange={(v) => setVisao(v as any)} data={[{ label: "Kanban", value: "kanban" }, { label: "Tabela", value: "tabela" }]} />
             <Select placeholder="Todas as Unidades" data={[{ value: "", label: "Todas as Unidades" }, ...unidades.map((u) => ({ value: u, label: u }))]} value={filtroUnidade ?? ""} onChange={(v) => setFiltroUnidade(v || null)} clearable w={220} />
           </Group>
+          <Box style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {visao === "kanban" ? (
             <KanbanBoard vagas={vagasFiltradas} onEditar={handleEditar} onDuplicar={handleDuplicar} onExcluir={setVagaParaExcluir} onMudarStatus={handleMudarStatus} pendingDrag={pendingDrag} />
           ) : (
             <VagasTable vagas={vagasFiltradas} onEditar={handleEditar} onExcluir={setVagaParaExcluir} />
           )}
+          </Box>
         </Stack>
+        )}
 
         {modalAberta && <NovaVagaModal vagaInicial={vagaSelecionada} onClose={() => setModalAberta(false)} onSubmit={handleSalvarVaga} />}
         <ConfirmarExclusaoModal vagaParaExcluir={vagaParaExcluir} setVagaParaExcluir={setVagaParaExcluir} confirmarExclusao={confirmarExclusao} />

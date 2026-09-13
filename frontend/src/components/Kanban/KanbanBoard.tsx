@@ -49,8 +49,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <ScrollArea type="hover" offsetScrollbars={false} scrollbars="x" scrollbarSize={8}>
-        <Box style={{ display: "flex", gap: 16, flexWrap: "nowrap", paddingBottom: 12, alignItems: "flex-start" }}>
+      <Box style={{ flex: 1, display: "flex", gap: "md", overflowX: "auto", overflowY: "hidden", minHeight: 0 }}>
+        <Box style={{ display: "flex", gap: 16, flexWrap: "nowrap", paddingBottom: 12, alignItems: "stretch" }}>
           {COLUNAS.map((status) => {
             let vagasDaColuna = vagas.filter((v) => v.status === status);
             if (pendingDrag && pendingDrag.novoStatus === status && !vagasDaColuna.some((v) => v.id === pendingDrag.vaga.id)) {
@@ -58,7 +58,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             }
             const pendingId = pendingDrag && pendingDrag.novoStatus === status ? pendingDrag.vaga.id : null;
             return (
-              <Box key={status} style={{ minWidth: 300, width: 300, flexShrink: 0 }}>
+              <Box key={status} style={{ minWidth: 300, width: 300, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
                 <KanbanColumn
                   status={status}
                   vagas={vagasDaColuna}
@@ -72,7 +72,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             );
           })}
         </Box>
-      </ScrollArea>
+      </Box>
     </DragDropContext>
   );
 };

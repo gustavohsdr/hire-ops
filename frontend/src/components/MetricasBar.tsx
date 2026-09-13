@@ -1,4 +1,4 @@
-import { Paper, SimpleGrid, Text } from "@mantine/core";
+import { Group, Paper, SimpleGrid, Text } from "@mantine/core";
 import type { Vaga } from "../types/vaga";
 
 function diasRestantes(v: Vaga) {
@@ -23,18 +23,24 @@ export function MetricasBar({ vagas }: { vagas: Vaga[] }) {
 
   return (
     <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-      <Paper withBorder p="md" radius="md" bg="white">
-        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Processos Ativos</Text>
-        <Text fw={800} size="xl">{processosAtivos}</Text>
+      <Paper withBorder p="md" radius="md" bg="white" style={{ minHeight: 88 }}>
+        <Group justify="space-between" h={20} mb="xs">
+          <Text size="xs" c="dimmed" fw={700}>PROCESSOS ATIVOS</Text>
+        </Group>
+        <Text size="xl" fw={700} lh={1}>{processosAtivos}</Text>
       </Paper>
-      <Paper withBorder p="md" radius="md" bg="white">
-        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Dentro do SLA</Text>
-        <Text fw={800} size="xl">{pctSla}%</Text>
-        <Text size="xs" c="dimmed">{dentroSlaQtd}/{processosAtivos} posições no prazo</Text>
+      <Paper withBorder p="md" radius="md" bg="white" style={{ minHeight: 88 }}>
+        <Group justify="space-between" h={20} mb="xs">
+          <Text size="xs" c="dimmed" fw={700}>DENTRO DO SLA</Text>
+          <Text size="xs" c="dimmed">{dentroSlaQtd}/{processosAtivos} no prazo</Text>
+        </Group>
+        <Text size="xl" fw={700} lh={1}>{pctSla}%</Text>
       </Paper>
-      <Paper withBorder p="md" radius="md" bg="white">
-        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Fechadas no Mês</Text>
-        <Text fw={800} size="xl">{fechadasMes}</Text>
+      <Paper withBorder p="md" radius="md" bg="white" style={{ minHeight: 88 }}>
+        <Group justify="space-between" h={20} mb="xs">
+          <Text size="xs" c="dimmed" fw={700}>FECHADAS NO MÊS</Text>
+        </Group>
+        <Text size="xl" fw={700} lh={1}>{fechadasMes}</Text>
       </Paper>
     </SimpleGrid>
   );

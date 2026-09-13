@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../database/prismaClient";
 
+const mesmoDia = (a: Date, b: Date) => a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+
 export class VagasController {
   // Listar todas as vagas para montar o Kanban
   async listar(req: Request, res: Response) {
@@ -24,21 +26,30 @@ export class VagasController {
         quantidade,
         unidade,
         departamento,
+        centroDeCusto,
         gestor,
         recrutador,
         motivo,
         tipoContrato,
         cargaHoraria,
         slaDias,
+        salario,
       } = req.body;
 
+      const dia = new Date().toISOString().slice(0, 10);
+      const inicioDia = new Date(dia + "T00:00:00.000Z");
+      const fimDia = new Date(dia + "T00:00:00.000Z");
+      fimDia.setUTCDate(fimDia.getUTCDate() + 1);
       const existente = await prisma.vaga.findFirst({
         where: {
           status: "Em Aberto",
-          cargoId: Number(cargoId),
+          cargoId: String(cargoId),
+          nivel,
           gestor,
           departamento,
           unidade,
+          tipoContrato,
+          dataAbertura: { gte: inicioDia, lt: fimDia },
         },
       });
 
@@ -48,21 +59,23 @@ export class VagasController {
           data: { quantidade: existente.quantidade + (Number(quantidade) || 1) },
           include: { cargo: true },
         });
-        return res.status(200).json(atualizado);
+        return res.status(200).json({ agrupado: true, vaga: atualizado });
       }
 
       const novaVaga = await prisma.vaga.create({
         data: {
-          cargoId: Number(cargoId),
+          cargoId: String(cargoId),
           nivel,
           quantidade: Number(quantidade) || 1,
           unidade,
           departamento,
+          centroDeCusto: centroDeCusto != null ? String(centroDeCusto) : null,
           gestor,
           recrutador,
           motivo,
           tipoContrato,
           cargaHoraria,
+          salario: salario != null ? Number(salario) : null,
           slaDias: Number(slaDias) || 30,
           status: "Em Aberto",
         },
@@ -100,18 +113,34 @@ export class VagasController {
       if (!origem) return res.status(404).json({ error: "Vaga não encontrada" });
       if (origem.status === novoStatus) return res.json(origem);
 
+      const diaOrigem = origem.dataAbertura.toISOString().slice(0, 10);
+      const gte = new Date(diaOrigem + "T00:00:00.000Z");
+      const lt = new Date(diaOrigem + "T00:00:00.000Z");
+      lt.setUTCDate(lt.getUTCDate() + 1);
       const alvo = await prisma.vaga.findFirst({
         where: {
           status: novoStatus,
           cargoId: origem.cargoId,
+          nivel: origem.nivel,
           gestor: origem.gestor,
           departamento: origem.departamento,
           unidade: origem.unidade,
+          tipoContrato: origem.tipoContrato,
+          dataAbertura: { gte, lt },
           NOT: { id: Number(id) },
         },
       });
 
       if (alvo) {
+        if (!mesmoDia(alvo.dataAbertura, origem.dataAbertura)) {
+          const dataFinalizacao = novoStatus === "Concluído" ? new Date() : null;
+          const vagaAtualizada = await prisma.vaga.update({
+            where: { id: Number(id) },
+            data: { status: novoStatus, dataFinalizacao },
+            include: { cargo: true },
+          });
+          return res.json({ agrupado: false, vaga: vagaAtualizada });
+        }
         const [destinoAtualizado] = await prisma.$transaction([
           prisma.vaga.update({
             where: { id: alvo.id },
@@ -144,28 +173,24 @@ export class VagasController {
         quantidade,
         unidade,
         departamento,
+        centroDeCusto,
         gestor,
         recrutador,
         motivo,
         tipoContrato,
         cargaHoraria,
         slaDias,
+        salario,
       } = req.body;
+      const data: any = { nivel, unidade, departamento, gestor, recrutador, motivo, tipoContrato, cargaHoraria };
+      if (cargoId !== undefined) data.cargoId = String(cargoId);
+      if (quantidade !== undefined) data.quantidade = Number(quantidade);
+      if (centroDeCusto !== undefined) data.centroDeCusto = centroDeCusto != null ? String(centroDeCusto) : null;
+      if (salario !== undefined) data.salario = salario != null ? Number(salario) : null;
+      if (slaDias !== undefined) data.slaDias = Number(slaDias);
       const vagaAtualizada = await prisma.vaga.update({
         where: { id: Number(id) },
-        data: {
-          cargoId: cargoId !== undefined ? Number(cargoId) : undefined,
-          nivel,
-          quantidade: quantidade !== undefined ? Number(quantidade) : undefined,
-          unidade,
-          departamento,
-          gestor,
-          recrutador,
-          motivo,
-          tipoContrato,
-          cargaHoraria,
-          slaDias: slaDias !== undefined ? Number(slaDias) : undefined,
-        },
+        data,
         include: { cargo: true },
       });
       return res.json(vagaAtualizada);
@@ -188,18 +213,54 @@ export class VagasController {
       }
       if (!novoStatus) return res.status(400).json({ error: "novoStatus é obrigatório" });
 
+      const diaO = vagaOrigem.dataAbertura.toISOString().slice(0, 10);
+      const gteD = new Date(diaO + "T00:00:00.000Z");
+      const ltD = new Date(diaO + "T00:00:00.000Z");
+      ltD.setUTCDate(ltD.getUTCDate() + 1);
       const alvo = await prisma.vaga.findFirst({
         where: {
           status: novoStatus,
           cargoId: vagaOrigem.cargoId,
+          nivel: vagaOrigem.nivel,
           gestor: vagaOrigem.gestor,
           departamento: vagaOrigem.departamento,
           unidade: vagaOrigem.unidade,
+          tipoContrato: vagaOrigem.tipoContrato,
+          dataAbertura: { gte: gteD, lt: ltD },
           NOT: { id: Number(id) },
         },
       });
 
       if (alvo) {
+        if (!mesmoDia(alvo.dataAbertura, vagaOrigem.dataAbertura)) {
+          const [vagaAtualizada, novaVaga] = await prisma.$transaction([
+            prisma.vaga.update({
+              where: { id: Number(id) },
+              data: { quantidade: vagaOrigem.quantidade - qtdMover },
+              include: { cargo: true },
+            }),
+            prisma.vaga.create({
+              data: {
+                cargoId: vagaOrigem.cargoId,
+                nivel: vagaOrigem.nivel,
+                quantidade: qtdMover,
+                unidade: vagaOrigem.unidade,
+                departamento: vagaOrigem.departamento,
+                centroDeCusto: (vagaOrigem as any).centroDeCusto ?? null,
+                gestor: vagaOrigem.gestor,
+                recrutador: vagaOrigem.recrutador,
+                motivo: vagaOrigem.motivo,
+                tipoContrato: vagaOrigem.tipoContrato,
+                cargaHoraria: vagaOrigem.cargaHoraria,
+                slaDias: vagaOrigem.slaDias,
+                status: novoStatus,
+                dataFinalizacao: novoStatus === "Concluído" ? new Date() : null,
+              },
+              include: { cargo: true },
+            }),
+          ]);
+          return res.status(201).json({ origem: vagaAtualizada, nova: novaVaga, agrupado: false });
+        }
         const [origemAtualizada, destinoAtualizado] = await prisma.$transaction([
           prisma.vaga.update({
             where: { id: Number(id) },
@@ -228,6 +289,7 @@ export class VagasController {
             quantidade: qtdMover,
             unidade: vagaOrigem.unidade,
             departamento: vagaOrigem.departamento,
+            centroDeCusto: (vagaOrigem as any).centroDeCusto ?? null,
             gestor: vagaOrigem.gestor,
             recrutador: vagaOrigem.recrutador,
             motivo: vagaOrigem.motivo,

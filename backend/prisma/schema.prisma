@@ -8,25 +8,50 @@ datasource db {
 }
 
 model Cargo {
-  id    Int    @id @default(autoincrement())
-  nome  String @unique
-  vagas Vaga[]
+  id                 String   @id @default(uuid())
+  nome               String   @unique
+  categoria          String   @default("ADMINISTRATIVO")
+  departamento       String?
+  centroDeCusto      String?
+  slaPadrao          Int      @default(30)
+  cargaHoraria       String?
+  salarioEstagio     Float?
+  salarioJunior      Float?
+  salarioPleno       Float?
+  salarioSenior      Float?
+  salarioCoordenador Float?
+  createdAt          DateTime @default(now())
+  vagas              Vaga[]
+}
+
+model Unidade {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Gestor {
+  id        String   @id @default(uuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
 }
 
 model Vaga {
   id              Int       @id @default(autoincrement())
-  cargoId         Int
+  cargoId         String
   cargo           Cargo     @relation(fields: [cargoId], references: [id])
-  nivel           String    // Jr, Pleno, Sr, Estágio
+  nivel           String
   quantidade      Int       @default(1)
   unidade         String
   departamento    String
   gestor          String
   recrutador      String
-  motivo          String    // Aumento de Quadro, Substituição
-  tipoContrato    String    // CLT, PJ, Estágio
+  motivo          String
+  tipoContrato    String
   cargaHoraria    String?
-  status          String    @default("Em Aberto") // Em Aberto, Em Andamento, Congelado, Concluído, Cancelado
+  salario         Float?
+  centroDeCusto   String?
+  status          String    @default("Em Aberto")
   slaDias         Int       @default(30)
   dataAbertura    DateTime  @default(now())
   dataFinalizacao DateTime?

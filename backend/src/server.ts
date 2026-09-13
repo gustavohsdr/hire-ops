@@ -9,5 +9,5 @@ app.use(express.json());
 app.use("/api", routes);
 
 app.listen(3333, () => {
-  console.log("🚀 Backend rodando em http://localhost:3333/api");
+  console.log("Backend rodando em http://localhost:3333/api");
 });

@@ -29,7 +29,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
       p="xs"
       radius="md"
       bg="var(--mantine-color-gray-0)"
-      style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 300px)", maxHeight: 680, minHeight: 380 }}
+      style={{ display: "flex", flexDirection: "column", height: "100%", maxHeight: "100%", minHeight: 0 }}
     >
       <Paper p="xs" radius="sm" withBorder mb="sm" bg="white" style={{ flexShrink: 0 }}>
         <Text fw={700} size="sm">
@@ -44,7 +44,10 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               ref={provided.innerRef}
               {...provided.droppableProps}
               style={{
-                minHeight: 120,
+                flex: 1,
+                overflowY: "auto",
+                paddingRight: "4px",
+                minHeight: 0,
                 borderRadius: 6,
                 backgroundColor: snapshot.isDraggingOver ? "var(--mantine-color-blue-0)" : "transparent",
                 transition: "background-color 0.2s ease",

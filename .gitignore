@@ -1,2 +1,11 @@
-node_modules/\n.env\ndev.db\ndist/\nbuild/
+node_modules/
+**/node_modules/
+.prisma/
+**/node_modules/.prisma/
+.env
+*.db
 backend/prisma/dev.db
+dist/
+build/
+.vscode/
+nul
