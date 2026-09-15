@@ -8,9 +8,11 @@ import { ConfiguracoesPage } from "./pages/ConfiguracoesPage";
 import { ConfirmarExclusaoModal } from "./components/Modals/ConfirmarExclusaoModal";
 import { MoverVagaModal } from "./components/Modals/MoverVagaModal";
 import { NovaVagaModal } from "./components/Modals/NovaVagaModal";
+import { DecisaoAdmissaoModal } from "./components/Modals/DecisaoAdmissaoModal";
+import { VagaDetalhesModal } from "./components/Modals/VagaDetalhesModal";
 import { VagasTable } from "./components/VagasTable";
 import { api } from "./services/api";
-import type { NovaVagaPayload, StatusVaga, Vaga } from "./types/vaga";
+import type { NovaVagaPayload, StatusVaga, SubEtapaVaga, Vaga } from "./types/vaga";
 
 export function App() {
   const [vagas, setVagas] = useState<Vaga[]>([]);
@@ -18,6 +20,8 @@ export function App() {
   const [vagaSelecionada, setVagaSelecionada] = useState<Vaga | null>(null);
   const [modoModal, setModoModal] = useState<"criar" | "editar" | "duplicar">("criar");
   const [vagaParaExcluir, setVagaParaExcluir] = useState<Vaga | null>(null);
+  const [vagaDetalhe, setVagaDetalhe] = useState<Vaga | null>(null);
+  const [vagaDecisao, setVagaDecisao] = useState<Vaga | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{ vaga: Vaga; novoStatus: StatusVaga } | null>(null);
   const [busca, setBusca] = useState("");
   const [sidebarOpened, setSidebarOpened] = useState(false);
@@ -26,8 +30,14 @@ export function App() {
   const [page, setPage] = useState("kanban");
 
   const carregarVagas = async () => {
-    const dados = await api.getVagas();
-    setVagas(dados);
+    try {
+      const dados = await api.getVagas();
+      if (Array.isArray(dados)) setVagas(dados);
+      else { console.error("[getVagas] resposta inesperada:", dados); setVagas([]); }
+    } catch (e) {
+      console.error("[getVagas] falha:", e);
+      setVagas([]);
+    }
   };
 
   useEffect(() => {
@@ -45,6 +55,11 @@ export function App() {
   }, [vagas, busca, filtroUnidade]);
 
   const unidades = useMemo(() => [...new Set(vagas.map((v) => v.unidade))].filter(Boolean), [vagas]);
+
+  const vagasPendentesAdmissao = useMemo(() => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return vagas.filter((v) => (v as any).subEtapa === "ADMISSAO" && (v as any).dataAdmissao && (v as any).candidatoNome && (!(v as any).statusAdmissao || (v as any).statusAdmissao === "PENDENTE") && String((v as any).dataAdmissao).slice(0, 10) <= hoje);
+  }, [vagas]);
 
   const handleAbrirCriar = () => {
     setVagaSelecionada(null);
@@ -77,10 +92,11 @@ export function App() {
   const executarMoverTodas = async (id: number, novoStatus: StatusVaga) => {
     const dragged = vagas.find((v) => v.id === id);
     const destinoExistente = dragged ? vagas.find((v) => v.status === novoStatus && v.id !== id && isMesmoNegocio(v, dragged)) : null;
+    const subEtapaPatch = novoStatus === "Em Andamento" && !(dragged as any)?.subEtapa ? { subEtapa: "ALINHAMENTO" as SubEtapaVaga } : {};
     if (destinoExistente && dragged) {
       setVagas((prev) => prev.filter((v) => v.id !== id).map((v) => (v.id === destinoExistente.id ? { ...v, quantidade: v.quantidade + dragged.quantidade } : v)));
     } else {
-      setVagas((vagasAtuais) => vagasAtuais.map((v) => (v.id === id ? { ...v, status: novoStatus, dataFinalizacao: novoStatus === "Concluído" ? new Date().toISOString() : null } : v)));
+      setVagas((vagasAtuais) => vagasAtuais.map((v) => (v.id === id ? { ...v, status: novoStatus, dataFinalizacao: novoStatus === "Concluído" ? new Date().toISOString() : null, ...subEtapaPatch } as any : v)));
     }
     try {
       const res = await api.updateStatus(id, novoStatus);
@@ -108,6 +124,27 @@ export function App() {
     await executarMoverTodas(id, novoStatus);
   };
 
+  const handleSubEtapa = async (id: number, subEtapa: SubEtapaVaga) => {
+    setVagas((prev) => prev.map((v) => (v.id === id ? { ...v, subEtapa } as any : v)));
+    try {
+      const atualizado = await api.updateSubEtapa(id, subEtapa);
+      setVagas((prev) => prev.map((v) => (v.id === atualizado.id ? atualizado : v)));
+    } catch {
+      carregarVagas();
+    }
+  };
+
+  const handleDecisaoConfirm = async (data: { resultado: "APROVADO" | "REPROVADO" | "DESISTENCIA"; motivo?: string | null; subEtapaRetorno?: SubEtapaVaga }) => {
+    if (!vagaDecisao) return;
+    try {
+      const atualizado = await api.decisaoAdmissao(vagaDecisao.id, data);
+      setVagas((prev) => prev.map((v) => (v.id === atualizado.id ? atualizado : v)));
+      setVagaDecisao(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleMoverTodas = async () => {
     if (!pendingDrag) return;
     const { vaga, novoStatus } = pendingDrag;
@@ -119,6 +156,7 @@ export function App() {
     if (!pendingDrag) return;
     const { vaga, novoStatus } = pendingDrag;
     setPendingDrag(null);
+    const patchSub = novoStatus === "Em Andamento" && !(vaga as any).subEtapa ? { subEtapa: "ALINHAMENTO" as SubEtapaVaga } : {};
     const destinoExistente = vagas.find((v) => v.status === novoStatus && v.id !== vaga.id && isMesmoNegocio(v, vaga));
     let tempId: number | null = null;
     if (destinoExistente) {
@@ -133,7 +171,7 @@ export function App() {
       tempId = Date.now();
       setVagas((prev) => {
         const origemAtualizada = { ...vaga, quantidade: vaga.quantidade - qtdMover };
-        const novaTemp: Vaga = { ...vaga, id: tempId!, quantidade: qtdMover, status: novoStatus, dataFinalizacao: novoStatus === "Concluído" ? new Date().toISOString() : null };
+        const novaTemp: Vaga = { ...vaga, id: tempId!, quantidade: qtdMover, status: novoStatus, dataFinalizacao: novoStatus === "Concluído" ? new Date().toISOString() : null, ...patchSub } as any;
         return prev.map((v) => (v.id === vaga.id ? origemAtualizada : v)).concat(novaTemp);
       });
     }
@@ -178,7 +216,22 @@ export function App() {
   return (
     <AppShell header={{ height: 60 }} navbar={{ width: 220, breakpoint: "sm", collapsed: { mobile: !sidebarOpened } }} padding="md" style={{ height: "100vh", maxHeight: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <AppShell.Header withBorder>
-        <AppHeader busca={busca} onBuscaChange={setBusca} onNovaVaga={handleAbrirCriar} opened={sidebarOpened} onToggle={() => setSidebarOpened((o) => !o)} />
+        <AppHeader
+          busca={busca}
+          onBuscaChange={setBusca}
+          onNovaVaga={handleAbrirCriar}
+          opened={sidebarOpened}
+          onToggle={() => setSidebarOpened((o) => !o)}
+          vagasPendentes={vagasPendentesAdmissao}
+          onDecisao={setVagaDecisao}
+          onAprovar={async (v) => {
+            try {
+              const atualizado = await api.decisaoAdmissao(v.id, { resultado: "APROVADO" });
+              setVagas((prev) => prev.map((x) => (x.id === atualizado.id ? atualizado : x)));
+            } catch {}
+          }}
+          onVagaAtualizada={(v) => setVagas((prev) => prev.map((x) => (x.id === v.id ? v : x)))}
+        />
       </AppShell.Header>
       <AppShell.Navbar p="xs" withBorder>
         <AppSidebar page={page} onNavigate={setPage} />
@@ -195,11 +248,11 @@ export function App() {
             <Select placeholder="Todas as Unidades" data={[{ value: "", label: "Todas as Unidades" }, ...unidades.map((u) => ({ value: u, label: u }))]} value={filtroUnidade ?? ""} onChange={(v) => setFiltroUnidade(v || null)} clearable w={220} />
           </Group>
           <Box style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {visao === "kanban" ? (
-            <KanbanBoard vagas={vagasFiltradas} onEditar={handleEditar} onDuplicar={handleDuplicar} onExcluir={setVagaParaExcluir} onMudarStatus={handleMudarStatus} pendingDrag={pendingDrag} />
-          ) : (
-            <VagasTable vagas={vagasFiltradas} onEditar={handleEditar} onExcluir={setVagaParaExcluir} />
-          )}
+            {visao === "kanban" ? (
+              <KanbanBoard vagas={vagasFiltradas} onEditar={handleEditar} onDuplicar={handleDuplicar} onExcluir={setVagaParaExcluir} onMudarStatus={handleMudarStatus} onDetalhes={setVagaDetalhe} onSubEtapa={handleSubEtapa} onDecisaoAdmissao={setVagaDecisao} onVagaAtualizada={(v) => { setVagas((prev) => prev.map((x) => (x.id === v.id ? v : x))); const d = (v as any).dataAdmissao ? String((v as any).dataAdmissao).slice(0, 10) : null; const hoje = new Date().toISOString().slice(0, 10); if ((v as any).subEtapa === "ADMISSAO" && (v as any).statusAdmissao === "PENDENTE" && d && d <= hoje) setVagaDecisao(v); }} onBulkSubEtapa={async (ids, se) => { const updated = await api.bulkUpdateSubEtapa(ids, se); setVagas((prev) => prev.map((v) => { const u = updated.find((x) => x.id === v.id); return u ? u : v; })); }} pendingDrag={pendingDrag} />
+            ) : (
+              <VagasTable vagas={vagasFiltradas} onEditar={handleEditar} onExcluir={setVagaParaExcluir} />
+            )}
           </Box>
         </Stack>
         )}
@@ -207,6 +260,8 @@ export function App() {
         {modalAberta && <NovaVagaModal vagaInicial={vagaSelecionada} onClose={() => setModalAberta(false)} onSubmit={handleSalvarVaga} />}
         <ConfirmarExclusaoModal vagaParaExcluir={vagaParaExcluir} setVagaParaExcluir={setVagaParaExcluir} confirmarExclusao={confirmarExclusao} />
         {pendingDrag && <MoverVagaModal vaga={pendingDrag.vaga} novoStatus={pendingDrag.novoStatus} onClose={() => setPendingDrag(null)} onMoverTodas={handleMoverTodas} onMoverParcial={handleMoverParcial} />}
+        <VagaDetalhesModal vaga={vagaDetalhe} opened={!!vagaDetalhe} onClose={() => setVagaDetalhe(null)} />
+        <DecisaoAdmissaoModal vaga={vagaDecisao} opened={!!vagaDecisao} onClose={() => setVagaDecisao(null)} onConfirm={handleDecisaoConfirm} />
       </AppShell.Main>
     </AppShell>
   );

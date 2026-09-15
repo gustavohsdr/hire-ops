@@ -7,13 +7,14 @@ export class VagasController {
   // Listar todas as vagas para montar o Kanban
   async listar(req: Request, res: Response) {
     try {
-      const vagas = await prisma.vaga.findMany({
+      const vagas = await (prisma as any).vaga.findMany({
         include: { cargo: true },
         orderBy: { dataAbertura: "desc" },
       });
       return res.json(vagas);
     } catch (error) {
-      return res.status(500).json({ error: "Erro ao buscar vagas" });
+      console.error("[vagas.listar]", error);
+      return res.status(500).json({ error: "Erro ao buscar vagas", detail: (error as any)?.message || String(error) });
     }
   }
 
@@ -153,14 +154,29 @@ export class VagasController {
       }
 
       const dataFinalizacao = novoStatus === "Concluído" ? new Date() : null;
+      const subEtapaDefault = novoStatus === "Em Andamento" && !(origem as any).subEtapa ? { subEtapa: "ALINHAMENTO" } : {};
       const vagaAtualizada = await prisma.vaga.update({
         where: { id: Number(id) },
-        data: { status: novoStatus, dataFinalizacao },
+        data: { status: novoStatus, dataFinalizacao, ...subEtapaDefault } as any,
         include: { cargo: true },
       });
       return res.json({ agrupado: false, vaga: vagaAtualizada });
     } catch (error) {
       return res.status(400).json({ error: "Erro ao atualizar status da vaga" });
+    }
+  }
+
+  async bulkAtualizarSubEtapa(req: Request, res: Response) {
+    try {
+      const { ids, subEtapa } = req.body;
+      const allowed = ["ALINHAMENTO", "DIVULGACAO", "TRIAGEM", "VALIDACAO", "AGENDAMENTO", "ENTREVISTA", "ADMISSAO"];
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids obrigatório" });
+      if (!allowed.includes(String(subEtapa))) return res.status(400).json({ error: "subEtapa inválida" });
+      await prisma.$transaction(ids.map((id: number) => prisma.vaga.update({ where: { id: Number(id) }, data: { subEtapa: String(subEtapa) } as any })));
+      const updated = await prisma.vaga.findMany({ where: { id: { in: ids.map(Number) } }, include: { cargo: true } });
+      return res.json(updated);
+    } catch {
+      return res.status(400).json({ error: "Erro no bulk sub-etapa" });
     }
   }
 
@@ -181,6 +197,9 @@ export class VagasController {
         cargaHoraria,
         slaDias,
         salario,
+        subEtapa,
+        candidatoNome,
+        dataAdmissao,
       } = req.body;
       const data: any = { nivel, unidade, departamento, gestor, recrutador, motivo, tipoContrato, cargaHoraria };
       if (cargoId !== undefined) data.cargoId = String(cargoId);
@@ -188,6 +207,16 @@ export class VagasController {
       if (centroDeCusto !== undefined) data.centroDeCusto = centroDeCusto != null ? String(centroDeCusto) : null;
       if (salario !== undefined) data.salario = salario != null ? Number(salario) : null;
       if (slaDias !== undefined) data.slaDias = Number(slaDias);
+      if (subEtapa !== undefined) data.subEtapa = subEtapa ? String(subEtapa) : null;
+      if (candidatoNome !== undefined) data.candidatoNome = candidatoNome ? String(candidatoNome).trim() : null;
+      if (dataAdmissao !== undefined) {
+        if (!dataAdmissao) data.dataAdmissao = null;
+        else {
+          const s = String(dataAdmissao).split("T")[0] || "";
+          const [y, m, d] = s.split("-").map(Number);
+          data.dataAdmissao = new Date(Number(y), (Number(m) || 1) - 1, Number(d) || 1, 12, 0, 0);
+        }
+      }
       const vagaAtualizada = await prisma.vaga.update({
         where: { id: Number(id) },
         data,
@@ -196,6 +225,88 @@ export class VagasController {
       return res.json(vagaAtualizada);
     } catch (error) {
       return res.status(400).json({ error: "Erro ao atualizar vaga" });
+    }
+  }
+
+  async atualizarSubEtapa(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { subEtapa } = req.body;
+      const allowed = ["ALINHAMENTO", "DIVULGACAO", "TRIAGEM", "VALIDACAO", "AGENDAMENTO", "ENTREVISTA", "ADMISSAO"];
+      if (!allowed.includes(String(subEtapa))) return res.status(400).json({ error: "subEtapa inválida" });
+      const vaga = await prisma.vaga.update({ where: { id: Number(id) }, data: { subEtapa: String(subEtapa) } as any, include: { cargo: true } });
+      return res.json(vaga);
+    } catch {
+      return res.status(400).json({ error: "Erro ao atualizar sub-etapa" });
+    }
+  }
+
+  async salvarAdmissao(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { candidatoNome, dataAdmissao } = req.body;
+      if (!candidatoNome?.trim()) return res.status(400).json({ error: "candidatoNome obrigatório" });
+      let dataAdmissaoVal: Date | null = null;
+      if (dataAdmissao) {
+        const s = String(dataAdmissao).split("T")[0] || "";
+        const [y, m, d] = s.split("-").map(Number);
+        dataAdmissaoVal = new Date(Number(y), (Number(m) || 1) - 1, Number(d) || 1, 12, 0, 0);
+      }
+      const vaga = await prisma.vaga.update({
+        where: { id: Number(id) },
+        data: {
+          candidatoNome: String(candidatoNome).trim(),
+          dataAdmissao: dataAdmissaoVal,
+          statusAdmissao: "PENDENTE",
+        } as any,
+        include: { cargo: true },
+      });
+      return res.json(vaga);
+    } catch {
+      return res.status(400).json({ error: "Erro ao salvar admissão" });
+    }
+  }
+
+  async decisaoAdmissao(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { resultado, motivo, subEtapaRetorno } = req.body;
+      const allowedRes = ["APROVADO", "REPROVADO", "DESISTENCIA"];
+      if (!allowedRes.includes(String(resultado))) return res.status(400).json({ error: "resultado inválido" });
+      const vaga = await prisma.vaga.findUnique({ where: { id: Number(id) } });
+      if (!vaga) return res.status(404).json({ error: "Vaga não encontrada" });
+      const candidatoNome = (vaga as any).candidatoNome;
+      await (prisma as any).historicoAdmissao.create({
+        data: {
+          vagaId: Number(id),
+          candidatoNome: candidatoNome || "—",
+          resultado: String(resultado),
+          motivo: motivo ? String(motivo).trim() : null,
+        },
+      });
+      if (String(resultado) === "APROVADO") {
+        const atualizada = await prisma.vaga.update({
+          where: { id: Number(id) },
+          data: { status: "Concluído", statusAdmissao: "APROVADO", subEtapa: "ADMISSAO", dataFinalizacao: new Date() } as any,
+          include: { cargo: true },
+        });
+        return res.json(atualizada);
+      }
+      const retorno = subEtapaRetorno && ["ALINHAMENTO", "DIVULGACAO", "TRIAGEM", "VALIDACAO", "AGENDAMENTO", "ENTREVISTA"].includes(String(subEtapaRetorno)) ? String(subEtapaRetorno) : "TRIAGEM";
+      const atualizada = await prisma.vaga.update({
+        where: { id: Number(id) },
+        data: {
+          statusAdmissao: "REPROVADO",
+          status: "Em Andamento",
+          subEtapa: retorno,
+          candidatoNome: null,
+          dataAdmissao: null,
+        } as any,
+        include: { cargo: true },
+      });
+      return res.json(atualizada);
+    } catch {
+      return res.status(400).json({ error: "Erro na decisão de admissão" });
     }
   }
 

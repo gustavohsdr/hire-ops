@@ -1,7 +1,7 @@
 import { Droppable } from "@hello-pangea/dnd";
 import { Paper, ScrollArea, Stack, Text } from "@mantine/core";
 import React from "react";
-import type { StatusVaga, Vaga } from "../../types/vaga";
+import type { StatusVaga, SubEtapaVaga, Vaga } from "../../types/vaga";
 import { VagaCard } from "./VagaCard";
 
 interface KanbanColumnProps {
@@ -11,8 +11,17 @@ interface KanbanColumnProps {
   onDuplicar: (vaga: Vaga) => void;
   onExcluir: (vaga: Vaga) => void;
   onMudarStatus: (id: number, novoStatus: StatusVaga) => void;
+  onDetalhes?: (vaga: Vaga) => void;
+  onSubEtapa?: (id: number, subEtapa: SubEtapaVaga) => void;
+  onDecisaoAdmissao?: (vaga: Vaga) => void;
+  onVagaAtualizada?: (vaga: Vaga) => void;
+  selectedIds?: number[];
+  onToggleSelect?: (id: number) => void;
   pendingId?: number | null;
+  isBulkActive?: boolean;
 }
+
+const scrollbarCss = `::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.3)}`;
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   status,
@@ -21,7 +30,14 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onDuplicar,
   onExcluir,
   onMudarStatus,
+  onDetalhes,
+  onSubEtapa,
+  onDecisaoAdmissao,
+  onVagaAtualizada,
+  selectedIds,
+  onToggleSelect,
   pendingId,
+  isBulkActive,
 }) => {
   return (
     <Paper
@@ -37,7 +53,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
         </Text>
       </Paper>
 
-      <ScrollArea type="hover" scrollbarSize={6} offsetScrollbars={false} style={{ flex: 1, minHeight: 0 }}>
+      <style>{scrollbarCss}</style>
+      <ScrollArea type="hover" scrollbarSize={5} offsetScrollbars style={{ flex: 1, minHeight: 0, overflowX: "hidden" }}>
         <Droppable droppableId={status}>
           {(provided, snapshot) => (
             <div
@@ -46,13 +63,15 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
               style={{
                 flex: 1,
                 overflowY: "auto",
-                paddingRight: "4px",
+                overflowX: "hidden",
+                paddingRight: "6px",
+                paddingLeft: "2px",
                 minHeight: 0,
                 borderRadius: 6,
                 backgroundColor: snapshot.isDraggingOver ? "var(--mantine-color-blue-0)" : "transparent",
                 transition: "background-color 0.2s ease",
                 paddingBottom: 8,
-              }}
+              } as any}
             >
               {vagas.length === 0 && (
                 <Paper
@@ -76,7 +95,14 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
                     onDuplicar={onDuplicar}
                     onExcluir={onExcluir}
                     onMudarStatus={onMudarStatus}
+                    onDetalhes={onDetalhes}
+                    onSubEtapa={onSubEtapa}
+                    onDecisaoAdmissao={onDecisaoAdmissao}
+                    onVagaAtualizada={onVagaAtualizada}
+                    selected={selectedIds?.includes(vaga.id)}
+                    onToggleSelect={onToggleSelect}
                     isPending={pendingId === vaga.id}
+                    isBulkActive={!!isBulkActive}
                   />
                 ))}
               </Stack>
