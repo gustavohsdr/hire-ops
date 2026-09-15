@@ -37,11 +37,11 @@ model Gestor {
 }
 
 model Vaga {
-  id              Int       @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   cargoId         String
-  cargo           Cargo     @relation(fields: [cargoId], references: [id])
+  cargo           Cargo       @relation(fields: [cargoId], references: [id])
   nivel           String
-  quantidade      Int       @default(1)
+  quantidade      Int         @default(1)
   unidade         String
   departamento    String
   gestor          String
@@ -51,8 +51,37 @@ model Vaga {
   cargaHoraria    String?
   salario         Float?
   centroDeCusto   String?
-  status          String    @default("Em Aberto")
-  slaDias         Int       @default(30)
-  dataAbertura    DateTime  @default(now())
+  status          String      @default("Em Aberto")
+  subEtapa        String?
+  statusAdmissao  String?
+  candidatoNome   String?
+  dataAdmissao    DateTime?
+  slaDias         Int         @default(30)
+  dataAbertura    DateTime    @default(now())
   dataFinalizacao DateTime?
+  candidatos      Candidato[]
+  historicosAdmissao HistoricoAdmissao[]
+}
+
+model Candidato {
+  id        String   @id @default(uuid())
+  vagaId    Int
+  vaga      Vaga     @relation(fields: [vagaId], references: [id], onDelete: Cascade)
+  nome      String
+  email     String
+  telefone  String?
+  etapa     String   @default("Triagem")
+  status    String   @default("Ativo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HistoricoAdmissao {
+  id            String   @id @default(uuid())
+  vagaId        Int
+  vaga          Vaga     @relation(fields: [vagaId], references: [id], onDelete: Cascade)
+  candidatoNome String
+  resultado     String
+  motivo        String?
+  dataDecisao   DateTime @default(now())
 }

@@ -18,8 +18,6 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({ vagaInicial, onClo
   const [nivel, setNivel] = useState<string>(vagaInicial?.nivel || "Pleno");
   const [quantidade, setQuantidade] = useState<number>(vagaInicial?.quantidade || 1);
   const [unidade, setUnidade] = useState(vagaInicial?.unidade || "");
-  const [categoria, setCategoria] = useState<string>((vagaInicial as any)?.cargo?.categoria || (vagaInicial as any)?.categoria || "ADMINISTRATIVO");
-  void categoria;
   const [departamento, setDepartamento] = useState(vagaInicial?.departamento || "");
   const [centroDeCusto, setCentroDeCusto] = useState((vagaInicial as any)?.centroDeCusto || "");
   const [gestor, setGestor] = useState(vagaInicial?.gestor || "");
@@ -47,7 +45,6 @@ export const NovaVagaModal: React.FC<NovaVagaModalProps> = ({ vagaInicial, onClo
   const aplicarHerancaCargo = (cid: string) => {
     const c = cargos.find((x) => String(x.id) === String(cid));
     if (!c) return;
-    setCategoria(String((c as any).categoria || "ADMINISTRATIVO"));
     if ((c as any).departamento) setDepartamento(String((c as any).departamento));
     if ((c as any).centroDeCusto) setCentroDeCusto(String((c as any).centroDeCusto));
     setSlaDias(Number((c as any).slaPadrao ?? 30));

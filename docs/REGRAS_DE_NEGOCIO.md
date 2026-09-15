@@ -44,7 +44,8 @@
   - `Cargo` (id uuid, nome unique, categoria ADMINISTRATIVO|OPERACIONAL, departamento String?, centroDeCusto String?, slaPadrao 30, cargaHoraria String?, salarioEstagio/Junior/Pleno/Senior/Coordenador Float?, createdAt)
   - `Unidade` (id uuid, nome unique)
   - `Gestor` (id uuid, nome unique)
-  - `Vaga.cargoId String` FK uuid, `salario Float?`, `cargaHoraria String?`, `centroDeCusto String?`
+  - `Vaga.cargoId String` FK uuid, `salario Float?`, `cargaHoraria String?`, `centroDeCusto String?`, `subEtapa String?` (ALINHAMENTO|DIVULGACAO|TRIAGEM|VALIDACAO|AGENDAMENTO|ENTREVISTA|ADMISSAO), `statusAdmissao String?` (PENDENTE|APROVADO|REPROVADO), `candidatoNome String?`, `dataAdmissao DateTime?`, `historicosAdmissao HistoricoAdmissao[]`
+  - `HistoricoAdmissao` (id uuid, vagaId Int FK cascade, candidatoNome, resultado APROVADO|REPROVADO|DESISTENCIA, motivo?, dataDecisao now)
 - `parametrosController.ts`: `cargosController` (listar/criar/atualizar/remover), `unidadesController`/`gestoresController` (listar/criar/remover).
 - `ConfiguracoesPage.tsx` (`Tabs` Mantine): Aba Cargos (tabela badge categoria `blue`/`orange` em `Tooltip`, SLA, `CargoModal`), Aba Unidades (lista+CRUD), Aba Gestores (lista+CRUD).
 - `CargoModal.tsx` (`size lg padding md`): `TextInput` Nome, `SimpleGrid cols2` Categoria+Departamento, `SimpleGrid cols2` SLA Padrão+Carga Horária, `TextInput` Centro de Custo (`CC-1020 - RH`), `SimpleGrid cols2` (Bolsa Estágio|Salário Júnior / Pleno|Sênior) + linha `Salário Coordenador`, rótulos por extenso, proteção com máscara olhinho.
@@ -70,9 +71,23 @@
   ADMINISTRATIVO=`blue` light, OPERACIONAL=`orange` light.
 - **Tooltips delicados:** Mantine `Tooltip` (`withArrow={false}`, `position="top"`, `radius="sm"`) sem atributo `title` nativo duplicado; disparo condicional exclusivo para truncamento: `disabled={(cargo.nome.length < 32)}` no título do card e `disabled={textoSlaCompleto.length < 18}` no SLA; categoria sempre com Tooltip mas discreto.
 - **Rodapé VagaCard:** `Group gap4` aproximado (`IconUser`/`IconMapPin` 14px + `gap4`) sem separador visual ruidoso `•`; gestor/unidade com `whiteSpace nowrap ellipsis`, `QTD` badge à direita apenas se `quantidade>1`.
-- **VagaCard compacto:** `Card padding xs (8px)`, linha1 categoria+SLA+kebab `Menu.Sub` (Mover Status), linha2 cargo-nível `fw600 fz13` truncado com Tooltip, linha3 rodapé.
+- **VagaCard compacto:** `Card padding 0` + inner `Box p8`; linha1 header `Group align center justify space-between mb xs`; linha2 título `Text fw600 fz12 lh1.3 block truncate end m0 p0` com Tooltip; linha3 rodapé `align flex-start`; rail esquerdo `24px` `Check` círculo `20px` topo `pt8`; bordas SLA + hover/seleção `blue.2 #a5d8ff` zero shift + `user-select none`.
 
-## 11. Integração API
+## 11. Detalhes da Vaga e Gestão de Candidatos (Headcount Funil)
+- **Gatilho `VagaCard → VagaDetalhesModal`:** `VagaCard.tsx` `onClick={() => onDetalhes(vaga)}` no `Card` abre `VagaDetalhesModal`; cliques em ações internas (kebab `Menu`, `ActionIcon`) chamam `e.stopPropagation()` para não disparar o modal. `KanbanBoard→KanbanColumn→VagaCard` propagam `onDetalhes`; `App.tsx` controla `vagaDetalhe` e renderiza `<VagaDetalhesModal vaga={vagaDetalhe} opened={!!vagaDetalhe} />`.
+- **`VagaDetalhesModal.tsx`** (`size="xl"`, Mantine `Tabs`): Aba **Visão Geral** exibe dados completos herdados do cargo/processo (Gestor, Unidade, Carga Horária, Centro de Custo, SLA, Faixa Salarial mascarada `WebkitTextSecurity disc` com toggle `IconEye/Off`); Aba **Candidatos** exibe `Table` de candidatos vinculados com `Badge` de `Etapa` (Triagem cinza, Entrevista RH blue, Entrevista Gestor violet, Proposta yellow, Contratado green), `Select` inline para alterar etapa, botão `+ Incluir Candidato` que abre `Paper` com `TextInput` nome/email/telefone + `Select` etapa, e `ActionIcon IconTrash` para remover.
+- **Vínculo candidatos ↔ processo (headcount):** `Candidato` pertence a `Vaga` (`vagaId` FK, `onDelete Cascade`); possibilita funil por processo sem alterar `quantidade`/headcount. `etapa` default `Triagem`, `status` default `Ativo`.
+- **`schema.prisma`:** `Candidato { id uuid, vagaId Int FK, nome, email, telefone?, etapa String default "Triagem", status String default "Ativo", createdAt, updatedAt }` + `Vaga { candidatos Candidato[] }`.
+
+## 12. Pipeline Operacional Em Andamento (Sub-etapas 02–08), Bulk e Admissão
+- **Sub-etapa (Pill minimalista + micro-indicador):** `Vaga.subEtapa` (`ALINHAMENTO`🤝02 | `DIVULGACAO`📢03 | `TRIAGEM`🔍04 | `VALIDACAO`🎯05 | `AGENDAMENTO`📅06 | `ENTREVISTA`🗣️07 | `ADMISSAO`📝08) **só em `Em Andamento`**. `VagaCard.tsx` `UnstyledButton` Pill `gray-1`→`gray-2` (`11px 600` `4px 8px` `radius 6`) + `IconChevronDown 12` `opacity .6`: `formatarSubEtapa` (remove emoji/numeração → uppercase `ALINHAMENTO DA VAGA` etc.). Se `ADMISSAO+PENDENTE` e `dataAdmissao ≤ hoje` → Pill vermelha `red-0/red-7` + `Box dot 6px red` `ADMISSÃO (PENDENTE)` zero shift; senão `gray-1/teal`. `Menu bottom-start 220` `stopPropagation` em todos os cliques. Mesmo Pill para caso `ADMISSAO` fora de `Em Andamento` quando `admissaoVencida`.
+- **Sub-etapa default `ALINHAMENTO`:** ao mover para `Em Andamento` (drag `atualizarStatus`, `executarMoverTodas` otimismo + `desmembrar/partial`), se `vaga.subEtapa` nulo → `ALINHAMENTO` automático. `backend vagasController.atualizarStatus` faz `subEtapaDefault = "ALINHAMENTO"`; `App.tsx` replica otimismo + `novaTemp`.
+- **Seleção em lote (Bulk):** `KanbanBoard selectedIds` + `VagaCard` rail `24px` círculo `20px IconCheck` `slide reveal` (`w 0→24 opacity 0→1 translateX -10→0 mr 0→6` `0.2s cubic-bezier`) topo `pt8` `IconCheck 12` scale pop `0.4→1`; atalhos `Shift/Ctrl/Cmd+Clique` (`handleCardClick`) + rail `handleCheckboxClick` + `user-select none` + `hover/seleção` `blue.2` `#a5d8ff` `boxShadow`; título `fz12`. `BulkActionToolbar.tsx` `Paper xl fixed bottom 24 translateX -50% Transition slide-up 200 ease` `z 1000`: `Badge blue filled` + `Button Alterar Sub-etapa ▴` (`Menu top-start offset 8` 7 opções `02. … 08. …` sem ícones) + `Limpar`. `PATCH /vagas/bulk-subetapa {ids, subEtapa}`.
+- **TopBar Central de Alertas:** `AppHeader` `vagasPendentesAdmissao = filter ADMISSAO && dataAdmissao && candidatoNome && PENDENTE && dataAdmissao<=hoje`; botão `(N) Pendentes` `IconBell 18` abre `Menu 340` com `formatarDataLocal` (local D/M/Y sem UTC-midnight) + `Aprovar` (`IconCheck 14 teal light`) direto `POST decisao APROVADO` + `Reprovar` (`IconX 14 red light` → `DecisaoAdmissaoModal`). `dataAdmissao` persistida com `new Date(y,m-1,d,12,0,0)` para não voltar 1 dia.
+  - **Admissão / Decisão humana:** `VagaCard Popover 300px right-start` (`Nome *` + `date`; `closeOnClickOutside false` trava, `commit atômico` só no `Salvar`; `dataVencida ≤ hoje` expande `Resultado Radio APROVADO/REPROVADO/DESISTÊNCIA` + `Select retorno 02/04/07 default 07. Entrevista` + `Textarea motivo` + `IconCheck/X`; se `> hoje` só salva pendente) ao selecionar `ADMISSAO`; `PATCH /admissao` salva `PENDENTE`; `TopBar/AppHeader` híbrido `Aprovar` 1 clique vs `Reprovar` expande inline `Motivo+Retorno` sem modal. `POST /decisao-admissao` cria `HistoricoAdmissao` e: **APROVADO**→`Concluído+APROVADO+ADMISSAO+dataFinalizacao now`; **REPROVADO/DESISTENCIA**→`Em Andamento + retorno (default ENTREVISTA 07) + limpa candidato + REPROVADO`. `VagaCard Concluído` `IconUserCheck 12 + Contratado: nome`.
+- **Persistência:** `PATCH /subetapa`, `PATCH /bulk-subetapa`, `PATCH /admissao`, `POST /decisao-admissao` + `PUT /vagas/:id` com datas locais `12h`; `api.ts` `updateSubEtapa/bulkUpdateSubEtapa/salvarAdmissao/decisaoAdmissao`; `utils/formatters.ts formatarDataLocal`.
+
+## 13. Integração API
 Base `http://localhost:3333/api` (`services/api.ts` ↔ `backend/src/routes.ts`)
 
 | Método | Rota | Função | Retorno |
@@ -82,10 +97,17 @@ Base `http://localhost:3333/api` (`services/api.ts` ↔ `backend/src/routes.ts`)
 | PUT | /vagas/:id | updateVaga | Vaga |
 | DELETE | /vagas/:id | deleteVaga | 204 |
 | PATCH | /vagas/:id/status | updateStatus | AtualizarStatusResponse |
+| PATCH | /vagas/:id/subetapa | updateSubEtapa | Vaga |
+| PATCH | /vagas/:id/admissao | salvarAdmissao | Vaga |
+| POST | /vagas/:id/decisao-admissao | decisaoAdmissao | Vaga |
 | POST | /vagas/:id/desmembrar | desmembrarVaga | DesmembrarResponse |
+| GET | /vagas/:vagaId/candidatos | getCandidatos | Candidato[] |
+| POST | /candidatos | createCandidato | Candidato |
+| PUT | /candidatos/:id | updateCandidato | Candidato |
+| DELETE | /candidatos/:id | deleteCandidato | 204 |
 | GET/POST/PUT/DELETE | /cargos | getCargos/createCargo/updateCargo/deleteCargo | Cargo/Cargo[] |
 | GET/POST/DELETE | /unidades | getUnidades/createUnidade/deleteUnidade | Unidade/Unidade[] |
 | GET/POST/DELETE | /gestores | getGestores/createGestor/deleteGestor | Gestor/Gestor[] |
 
-Tipos `types/vaga.ts`: `StatusVaga`, `Vaga` (cargoId string uuid, cargo: Cargo, salario?, centroDeCusto?), `Cargo` (id uuid, categoria, departamento?, centroDeCusto?, slaPadrao, cargaHoraria?, 5 salarios), `Unidade`, `Gestor`, `NovaVagaPayload`, `AtualizarStatusResponse`, `DesmembrarResponse`.
-Backend `vagasController.listar` garante `prisma.vaga.findMany({ include: { cargo: true } })` para herança de categoria.
+Tipos `types/vaga.ts`: `SubEtapaVaga` (ALINHAMENTO|DIVULGACAO|TRIAGEM|VALIDACAO|AGENDAMENTO|ENTREVISTA|ADMISSAO), `StatusVaga`, `Vaga` (cargoId string uuid, cargo: Cargo, salario?, centroDeCusto?, subEtapa?, statusAdmissao PENDENTE|APROVADO|REPROVADO, candidatoNome?, dataAdmissao?), `Cargo` (id uuid, categoria, departamento?, centroDeCusto?, slaPadrao, cargaHoraria?, 5 salarios), `Unidade`, `Gestor`, `NovaVagaPayload`, `AtualizarStatusResponse`, `DesmembrarResponse`, `EtapaCandidato` (Triagem|Entrevista RH|Entrevista Gestor|Proposta|Contratado), `Candidato` (id uuid, vagaId number, nome, email, telefone?, etapa, status, createdAt, updatedAt), `HistoricoAdmissao` (id uuid, vagaId, candidatoNome, resultado, motivo?, dataDecisao).
+Backend `vagasController.listar` garante `prisma.vaga.findMany({ include: { cargo: true } })` para herança de categoria. Migração via `npx prisma db push` (ambiente não-interativo fallback do `migrate dev`).

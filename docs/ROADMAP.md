@@ -18,14 +18,28 @@
 - [x] VagasTable + toggle Kanban/Tabela + filtro unidade + busca cargo/gestor/unidade/depto
 - [x] API Express+Prisma+SQLite (`include: { cargo: true }` em `GET /vagas`) — `vagasController`+`parametrosController` discriminated union types
 
+## Concluído nesta sessão (2026-09-14) — da tarefa do chat ao checkpoint
+- [x] Modal de Detalhes + Candidatos (`VagaDetalhesModal` Tabs + `Candidato` FK `prisma db push`)
+- [x] Pipeline Em Andamento 02–08 (`subEtapa` 7 valores + default `ALINHAMENTO` no drag + `Até desmembrar`)
+- [x] Badge sub-etapa refinada: `Select` → `Badge teal Menu` → `formatarSubEtapa` uppercase minimalista → `UnstyledButton` Pill `gray-1/gray-2` `11px 600`
+- [x] Seleção em lote: `VagaCard` rail `28→24px` `Checkbox` → círculo `20px IconCheck` `scale pop` + `Shift/Ctrl/Cmd` + `user-select: none` + `KanbanBoard selectedIds` + `BulkActionToolbar` → `Paper xl fixed Transition slide-up` sem emojis, `IconCheck/X` Tabler
+- [x] Viewport `100vh` + `KanbanColumn ScrollArea offsetScrollbars` respiro `6px + 5px` + hover card `blue.2 #a5d8ff`
+- [x] Admissão: `AdmissaoModal` data local (`formatarDataLocal`) + decisão humana (`DecisaoAdmissaoModal` + `HistoricoAdmissao` + `POST decisao-admissao`) + micro-indicador `ADMISSÃO (PENDENTE)` + TopBar sino `(N) Pendentes` quick-actions (APROVADO direto / REPROVAR → modal com `subEtapaRetorno`) — regra: se `dataAdmissao > hoje` encerra sem `Decisao`.
+- [x] Alinhamento `VagaCard` header `center xs` + título `12px block truncate end lh 1.3 fw600` + checksum clean-code (removido `categoria` morto em `NovaVagaModal`, demais `tsc -b` OK)
+
 ## Backlog
 - [ ] Filtros avançados (departamento, gestor, SLA) + ordenação/paginação
 - [ ] Autenticação e permissões
-- [ ] Histórico de movimentações e auditoria
-- [ ] Notificações SLA e dashboard analítico
+- [ ] Histórico completo de movimentações e auditoria (estender `HistoricoAdmissao`)
+- [ ] Notificações SLA e dashboard analítico (expandir sino pendentes)
 - [ ] Testes (unit/integration/e2e) e CI/CD
 
+## Próximos passos (amanhã)
+- Refinar `VagaDetalhesModal` candidatos inline (ex: criar ao aprovar) / validar `qtd` vs contratados
+- Bulk também para `status` (ex: aprovar várias em lote) se desejado
+- Polir `dataFinalizacao` vs `dataAdmissao` em `Concluído` / relatório fechadas no mês
+
 ## Ideias
+- [x] Bulk actions — entregue nesta sessão
 - [ ] Preview de agrupamento no DND
-- [ ] Bulk actions
 - [ ] Integração ATS externo
